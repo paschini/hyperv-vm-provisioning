@@ -27,16 +27,16 @@
 
 [CmdletBinding()]
 param(
-  [string] $VMName = "CloudVm",
-  [int] $VMGeneration = 2,
-  [int] $VMProcessorCount = 2,
+  [string] $VMName = "Ubuntu24.04",
+  [int] $VMGeneration = "2",
+  [int] $VMProcessorCount = 4,
   [bool] $VMDynamicMemoryEnabled = $false,
-  [uint64] $VMMemoryStartupBytes = 1024MB,
+  [uint64] $VMMemoryStartupBytes = 4096MB,
   [uint64] $VMMinimumBytes = $VMMemoryStartupBytes,
   [uint64] $VMMaximumBytes = $VMMemoryStartupBytes,
   [uint64] $VHDSizeBytes = 40GB,
-  [string] $VirtualSwitchName = $null,
-  [string] $VMVlanID = $null,
+  [string] $VirtualSwitchName =  "TitanState_Lan",
+  [string] $VMVlanID = "13", 
   [string] $VMNativeVlanID = $null,
   [string] $VMAllowedVlanIDList = $null,
   [switch] $VMVMQ = $false,
@@ -50,7 +50,7 @@ param(
   [switch] $VMExposeVirtualizationExtensions = $false,
   [string] $VMVersion = $null, # version 8.0 for hyper-v 2016 compatibility, check all possible values with Get-VMHostSupportedVersion, see also: https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/deploy/upgrade-virtual-machine-version-in-hyper-v-on-windows-or-windows-server#what-happens-if-i-dont-upgrade-the-virtual-machine-configuration-version
   [string] $VMHostname = $VMName,
-  [string] $VMMachine_StoragePath = $null, # if defined setup machine path with storage path as subfolder
+  [string] $VMMachine_StoragePath = "D:\TSHV-VHD-01\", # if defined setup machine path with storage path as subfolder
   [string] $VMMachinePath = $null, # if not defined here default Virtal Machine path is used
   [string] $VMStoragePath = $null, # if not defined here Hyper-V settings path / fallback path is set below
   [bool] $ConvertImageToNoCloud = $false, # could be used for other image types that do not support NoCloud, not just Azure
@@ -62,20 +62,20 @@ param(
   [string] $NetNetmask = $null,
   [string] $NetNetwork = $null,
   [string] $NetGateway = $null,
-  [string] $NameServers = "1.1.1.1,1.0.0.1",
+  [string] $NameServers = $null,
   [string] $NetConfigType = $null, # ENI, v1, v2, ENI-file, dhclient
-  [string] $KeyboardLayout = "us", # 2-letter country code, for more info https://wiki.archlinux.org/title/Xorg/Keyboard_configuration
+  [string] $KeyboardLayout = "se", # 2-letter country code, for more info https://wiki.archlinux.org/title/Xorg/Keyboard_configuration
   [string] $KeyboardModel, # default: "pc105"
   [string] $KeyboardOptions, # example: "compose:rwin"
   [string] $Locale = "en_US", # "en_US.UTF-8",
-  [string] $TimeZone = "UTC", # UTC or continental zones of IANA DB like: Europe/Berlin
+  [string] $TimeZone = "Europe/Stockholm", # UTC or continental zones of IANA DB like: Europe/Berlin
   [string] $CloudInitPowerState = "reboot", # poweroff, halt, or reboot , https://cloudinit.readthedocs.io/en/latest/reference/modules.html#power-state-change
-  [string] $CustomUserDataYamlFile,
-  [string] $GuestAdminUsername = "admin",
-  [string] $GuestAdminPassword = "Passw0rd",
-  [string] $GuestAdminSshPubKey,
+  [string] $CustomUserDataYamlFile = $null, # path to custom user-data yaml file
+  [string] $GuestAdminUsername = "[ubuntu user name here]",
+  [string] $GuestAdminPassword = "[ubuntu password here]",
+  [string] $GuestAdminSshPubKey = "[ssh public key here]", # if not set, no ssh key is used
   [string] $GuestAdminSshPubKeyFile,
-  [string] $ImageVersion = "22.04", # $ImageName ="focal" # 20.04 LTS , $ImageName="bionic" # 18.04 LTS
+  [string] $ImageVersion = "24.04", # Ubuntu: "18.04", "20.04", "22.04", "22.04-azure", "24.04", "24.04-azure"
   [string] $ImageRelease = "release", # default option is get latest but could be fixed to some specific version for example "release-20210413"
   [string] $ImageBaseUrl = "http://cloud-images.ubuntu.com/releases", # alternative https://mirror.scaleuptech.com/ubuntu-cloud-images/releases
   [bool] $BaseImageCheckForUpdate = $true, # check for newer image at Distro cloud-images site
@@ -618,7 +618,7 @@ $(if (-not [string]::IsNullOrEmpty($GuestAdminSshPubKey)) {
 "})
 $(if (-not [string]::IsNullOrEmpty($GuestAdminSshPubKeyFile)) {
 "    ssh_authorized_keys:
-    - $(Get-Content -Path $GuestAdminSshPubKeyFile -Raw)
+    - $(Get-Content -Path $GuestAdminSshPubKeyFile -Raw)0
 "})
 
 disable_root: true    # true: notify default user account / false: allow root ssh login
@@ -736,10 +736,12 @@ Write-Verbose ""
 
 # override default userdata with custom yaml file: $CustomUserDataYamlFile
 # the will be parsed for any powershell variables, src: https://deadroot.info/scripts/2018/09/04/PowerShell-Templating
-if (-not [string]::IsNullOrEmpty($CustomUserDataYamlFile) -and (Test-Path $CustomUserDataYamlFile)) {
-  Write-Verbose "Using custom userdata yaml $CustomUserDataYamlFile"
-  $userdata = $ExecutionContext.InvokeCommand.ExpandString( $(Get-Content $CustomUserDataYamlFile -Raw) ) # parse variables
-}
+# if (-not [string]::IsNullOrEmpty($CustomUserDataYamlFile) -and (Test-Path $CustomUserDataYamlFile)) {
+#   Write-Host "Using custom userdata yaml $CustomUserDataYamlFile"
+#   $userdata = $ExecutionContext.InvokeCommand.ExpandString( $(Get-Content $CustomUserDataYamlFile -Raw) ) # parse variables
+# }
+
+Write-Host $userdata
 
 if ($ImageTypeAzure) {
   # cloud-init configuration that will be merged, see https://cloudinit.readthedocs.io/en/latest/topics/datasources/azure.html
