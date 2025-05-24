@@ -27,7 +27,7 @@
 
 [CmdletBinding()]
 param(
-  [string] $VMName = "Ubuntu24.04",
+  [string] $VMName = "Macarena",
   [int] $VMGeneration = "2",
   [int] $VMProcessorCount = 4,
   [bool] $VMDynamicMemoryEnabled = $false,
@@ -55,15 +55,16 @@ param(
   [string] $VMStoragePath = $null, # if not defined here Hyper-V settings path / fallback path is set below
   [bool] $ConvertImageToNoCloud = $false, # could be used for other image types that do not support NoCloud, not just Azure
   [bool] $ImageTypeAzure = $false,
-  [string] $DomainName = "domain.local",
+  [string] $DomainName = "TitanState.Lan", # domain name for the VM, used in FQDN
+  [string] $DomainHost = "SRV001",
   [string] $VMStaticMacAddress = $null,
   [string] $NetInterface = "eth0",
   [string] $NetAddress = $null,
-  [string] $NetNetmask = $null,
-  [string] $NetNetwork = $null,
-  [string] $NetGateway = $null,
-  [string] $NameServers = $null,
-  [string] $NetConfigType = $null, # ENI, v1, v2, ENI-file, dhclient
+  [string] $NetNetmask = "255.255.255.0",
+  [string] $NetNetwork = "13.10.13.0",
+  [string] $NetGateway = "13.10.13.1",
+  [string] $NameServers = "13.10.10.200,13.10.13.1",
+  [string] $NetConfigType = "ENI", # ENI, v1, v2, ENI-file, dhclient
   [string] $KeyboardLayout = "se", # 2-letter country code, for more info https://wiki.archlinux.org/title/Xorg/Keyboard_configuration
   [string] $KeyboardModel, # default: "pc105"
   [string] $KeyboardOptions, # example: "compose:rwin"
@@ -71,9 +72,9 @@ param(
   [string] $TimeZone = "Europe/Stockholm", # UTC or continental zones of IANA DB like: Europe/Berlin
   [string] $CloudInitPowerState = "reboot", # poweroff, halt, or reboot , https://cloudinit.readthedocs.io/en/latest/reference/modules.html#power-state-change
   [string] $CustomUserDataYamlFile = $null, # path to custom user-data yaml file
-  [string] $GuestAdminUsername = "[ubuntu user name here]",
-  [string] $GuestAdminPassword = "[ubuntu password here]",
-  [string] $GuestAdminSshPubKey = "[ssh public key here]", # if not set, no ssh key is used
+  [string] $GuestAdminUsername = "camila",
+  [string] $GuestAdminPassword = "ningy0him3",
+  [string] $GuestAdminSshPubKey = "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBIHrwsk7Bk/VMTJ8sOcU6WpInIJkIPGfCb8ajnog4YkHyez/NmVqaZmino81dHhmsHPMbmrkCON0i2bMFcgRdus= paschini",
   [string] $GuestAdminSshPubKeyFile,
   [string] $ImageVersion = "24.04", # Ubuntu: "18.04", "20.04", "22.04", "22.04-azure", "24.04", "24.04-azure"
   [string] $ImageRelease = "release", # default option is get latest but could be fixed to some specific version for example "release-20210413"
@@ -84,6 +85,19 @@ param(
   [switch] $ShowVmConnectWindow = $false,
   [switch] $Force = $false
 )
+
+#region [Set DNS record]
+Write-Host "Registering DNS record on " -NoNewline; Write-Host "$($DomainHost)" -ForegroundColor Cyan -NoNewline; Write-Host " :" -NoNewline
+
+$parameters = @{
+    ComputerName = "$($DomainHost).$($DomainName)"
+    ScriptBlock  = { Add-DnsServerResourceRecord -ZoneName $args[0] -A -Name $args[1] -IPv4Address $args[2] }
+    ArgumentList = $DomainName, $VMName, $NetAddress
+}
+Invoke-Command @parameters
+
+Write-Host "Done!" -ForegroundColor Green
+#endregion
 
 [System.Threading.Thread]::CurrentThread.CurrentUICulture = "en-US"
 [System.Threading.Thread]::CurrentThread.CurrentCulture = "en-US"
@@ -1293,4 +1307,4 @@ if ($ShowVmConnectWindow) {
   Start-Process "vmconnect" "localhost","$VMName" -WindowStyle Normal
 }
 
-Write-Host "Done"
+Write-Host "`nSetup complete!" -ForegroundColor Green
